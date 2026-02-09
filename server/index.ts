@@ -291,7 +291,7 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  const PORT = parseInt(process.env.PORT || "5001", 10);
+  const PORT = parseInt(process.env.PORT || "8080", 10);
   server.listen(PORT, "0.0.0.0", () => {
     log(`serving on port ${PORT}`);
   });

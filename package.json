@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "npx kill-port 5001 || true; tsx server/index.ts",
+    "start": "NODE_ENV=production tsx server/index.ts",
     "db:push": "drizzle-kit push",
     "seed": "tsx server/seed-force.ts",
     "seed:check": "tsx server/check-users.ts"
