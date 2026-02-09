@@ -8,3 +8,9 @@ node_modules
 
 dist/
 dist-server/
+
+# accidental bin/launchers created by npm scripts or shell
+npm
+tsc
+vite
+growth-os@1.0.0
