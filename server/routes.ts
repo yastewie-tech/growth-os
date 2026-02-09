@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "./db.js";
 import { abTests, users, products, skuContexts } from "../shared/schema.js";
@@ -90,6 +90,12 @@ const getOpenAI = () => {
 export async function registerRoutes(app: Express): Promise<Server> {
   // IMPORTANT: allow large JSON because base64 images can be big
   app.use(express.json({ limit: "25mb" }));
+
+  const wrapAsync =
+    (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
+    (req: Request, res: Response, next: NextFunction) => {
+      Promise.resolve(fn(req, res, next)).catch(next);
+    };
 
   // --- HELPERS ---
   const safeJsonParse = <T>(text: string): T => {
@@ -559,32 +565,35 @@ Output Schema (Strict JSON):
   });
 
   // --- API: ВХОД В СИСТЕМУ ---
-  app.post("/api/login", async (req, res) => {
-    try {
-      const { username, password } = req.body;
+  app.post(
+    "/api/login",
+    wrapAsync(async (req, res) => {
+      try {
+        const { username, password } = req.body;
 
-      const user = await db.query.users.findFirst({
-        where: eq(users.username, username),
-      });
+        const user = await db.query.users.findFirst({
+          where: eq(users.username, username),
+        });
 
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Неверный логин или пароль" });
+        if (!user || user.password !== password) {
+          return res.status(401).json({ message: "Неверный логин или пароль" });
+        }
+
+        if (user.isActive === false) {
+          return res.status(403).json({ message: "Пользователь отключен" });
+        }
+
+        const { password: _, ...userInfo } = user;
+        res.json({
+          ...userInfo,
+          isAdmin: Boolean(user.isAdmin || user.role === "admin"),
+        });
+      } catch (error) {
+        console.error("❌ /api/login error:", error);
+        return res.status(503).json({ error: "DB_UNAVAILABLE" });
       }
-
-      if (user.isActive === false) {
-        return res.status(403).json({ message: "Пользователь отключен" });
-      }
-
-      const { password: _, ...userInfo } = user;
-      res.json({
-        ...userInfo,
-        isAdmin: Boolean(user.isAdmin || user.role === "admin"),
-      });
-    } catch (error) {
-      console.error("❌ /api/login error:", error);
-      res.status(500).json({ message: "Ошибка при входе" });
-    }
-  });
+    })
+  );
 
   // --- API: ПОЛУЧИТЬ ПОЛЬЗОВАТЕЛЕЙ ---
   app.get("/api/users", async (_req, res) => {
