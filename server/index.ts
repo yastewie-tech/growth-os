@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import fs from "fs";
 import { registerRoutes } from "./routes.js";
 import { serveStatic, log } from "./vite.js";
 import { db } from "./db.js";
@@ -6,6 +7,18 @@ import { users, abTests } from "../shared/schema.js";
 import { sql } from "drizzle-orm";
 
 const app = express();
+
+const readSecretFile = (filePath: string) => {
+  try {
+    if (!fs.existsSync(filePath)) return "";
+    return fs.readFileSync(filePath, "utf8").trim();
+  } catch {
+    return "";
+  }
+};
+
+const resolveDatabaseUrl = () =>
+  process.env.DATABASE_URL?.trim() || readSecretFile("/etc/secrets/DATABASE_URL");
 
 // --- ВОТ ЭТОЙ СТРОКИ НЕ ХВАТАЛО: ---
 app.use(express.json()); 
@@ -46,6 +59,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const databaseUrl = resolveDatabaseUrl();
+  log(`DB URL present: ${Boolean(databaseUrl)}`, "db");
+  log(`DB URL length: ${databaseUrl.length}`, "db");
+
   // Schema sync is handled by drizzle-kit push
 
   const ensureAbTestsColumns = async () => {
@@ -292,10 +309,8 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
-    throw err;
+    console.error("Unhandled error:", err?.message || err);
+    res.status(500).json({ error: "SERVER_ERROR" });
   });
 
   const isProd = process.env.NODE_ENV === "production";

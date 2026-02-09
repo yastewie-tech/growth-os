@@ -1,4 +1,5 @@
 // server/db.ts
+import fs from "fs";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "../shared/schema.js";
@@ -6,10 +7,19 @@ import * as schema from "../shared/schema.js";
 const exampleUrl =
   "postgresql://user:password@host:5432/dbname?sslmode=require";
 
+function readSecretFile(filePath: string) {
+  try {
+    if (!fs.existsSync(filePath)) return "";
+    return fs.readFileSync(filePath, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
 function getDatabaseUrl() {
-  const url = process.env.DATABASE_URL?.trim() || "";
-  console.log("DATABASE_URL present:", Boolean(url));
-  return url;
+  const envUrl = process.env.DATABASE_URL?.trim() || "";
+  if (envUrl) return envUrl;
+  return readSecretFile("/etc/secrets/DATABASE_URL");
 }
 
 function validateDatabaseUrl(url: string) {
