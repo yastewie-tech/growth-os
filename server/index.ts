@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+import { serveStatic, log } from "./vite.js";
 import { db } from "./db.js";
 import { users, abTests } from "../shared/schema.js";
 import { sql } from "drizzle-orm";
@@ -302,13 +302,15 @@ app.use((req, res, next) => {
   const isProd = process.env.NODE_ENV === "production";
 
   if (!isProd) {
+    const { setupVite } = await import("./vite.js");
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  const PORT = Number(process.env.PORT) || 8080;
-  server.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
+  const port = Number(process.env.PORT) || 8080;
+  const host = "0.0.0.0";
+  server.listen(port, host, () => {
+    log(`serving on port ${port}`);
   });
 })();

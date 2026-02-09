@@ -64,25 +64,14 @@ export async function setupVite(app: Express, server: Server) {
 
 /**
  * PROD: раздаёт сборку Vite из dist/public.
- * Пытаемся найти dist/public в нескольких типичных местах (локально/в контейнере).
  */
 export function serveStatic(app: Express) {
-  const candidates = [
-    // стандартно в контейнере Fly обычно /app/dist/public
-    path.resolve(process.cwd(), "dist", "public"),
-    // если процесс.cwd() = dist-server/server или что-то рядом
-    path.resolve(process.cwd(), "..", "dist", "public"),
-    // на всякий случай — относительный от текущего файла
-    path.resolve(__dirname, "..", "..", "dist", "public"),
-  ];
+  const distPath = path.resolve(process.cwd(), "dist", "public");
 
-  const distPath = candidates.find((p) => fs.existsSync(p));
-
-  if (!distPath) {
+  if (!fs.existsSync(distPath)) {
     throw new Error(
-      `Could not find the build directory. Tried:\n` +
-        candidates.map((p) => `- ${p}`).join("\n") +
-        `\nMake sure to build the client first (vite build).`
+      `Could not find the build directory at ${distPath}. ` +
+        `Make sure to build the client first (vite build).`
     );
   }
 
