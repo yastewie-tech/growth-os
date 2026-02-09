@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
 import { serveStatic, log } from "./vite.js";
@@ -308,7 +307,7 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  const port = Number(process.env.PORT) || 8080;
+  const port = Number(process.env.PORT || 3000);
   const host = "0.0.0.0";
   server.listen(port, host, () => {
     log(`serving on port ${port}`);

@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { db } from "./db.js";
 import { products } from "../shared/schema.js";
 

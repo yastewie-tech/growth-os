@@ -589,7 +589,7 @@ Output Schema (Strict JSON):
   // --- API: ПОЛУЧИТЬ ПОЛЬЗОВАТЕЛЕЙ ---
   app.get("/api/users", async (_req, res) => {
     const allUsers = await db.select().from(users);
-    const safeUsers = allUsers.map(({ password, ...u }) => ({
+    const safeUsers = allUsers.map(({ password, ...u }: any) => ({
       ...u,
       isAdmin: Boolean(u.isAdmin || u.role === "admin"),
     }));
@@ -623,12 +623,12 @@ Output Schema (Strict JSON):
       const allUsers = await db.select().from(users).where(eq(users.isActive, true));
       const normalizeRole = (value?: string | null) => String(value || "").toLowerCase();
 
-      const designers = allUsers.filter((u) => normalizeRole(u.role).includes("designer"));
-      const contentManagers = allUsers.filter((u) => {
+      const designers = allUsers.filter((u: any) => normalizeRole(u.role).includes("designer"));
+      const contentManagers = allUsers.filter((u: any) => {
         const role = normalizeRole(u.role);
         return role.includes("content") || role.includes("контент") || role.includes("content_manager");
       });
-      const managers = allUsers.filter((u) => normalizeRole(u.role).includes("manager"));
+      const managers = allUsers.filter((u: any) => normalizeRole(u.role).includes("manager"));
 
       res.json({ designers, contentManagers, managers });
     } catch (error) {
@@ -706,8 +706,8 @@ Output Schema (Strict JSON):
       });
 
       const normalizeRole = (value?: string | null) => String(value || "").toLowerCase();
-      const designerUsers = activeUsers.filter((u) => normalizeRole(u.role).includes("designer"));
-      const contentUsers = activeUsers.filter((u) => {
+      const designerUsers = activeUsers.filter((u: any) => normalizeRole(u.role).includes("designer"));
+      const contentUsers = activeUsers.filter((u: any) => {
         const role = normalizeRole(u.role);
         return role.includes("content") || role.includes("контент") || role.includes("content_manager");
       });
@@ -719,8 +719,12 @@ Output Schema (Strict JSON):
         new Set(filtered.map((t: any) => String(t.contentManager || t?.assignees?.contentManager || "").trim()).filter(Boolean))
       );
 
-      const designerOptions = designerUsers.length ? designerUsers.map((u) => u.name || u.username).filter(Boolean) : fallbackDesigners;
-      const contentOptions = contentUsers.length ? contentUsers.map((u) => u.name || u.username).filter(Boolean) : fallbackContent;
+      const designerOptions = designerUsers.length
+        ? designerUsers.map((u: any) => u.name || u.username).filter(Boolean)
+        : fallbackDesigners;
+      const contentOptions = contentUsers.length
+        ? contentUsers.map((u: any) => u.name || u.username).filter(Boolean)
+        : fallbackContent;
       const categoryFromTests = filtered.map((t: any) => String(t.category || "").trim()).filter(Boolean);
       const categoryFromProducts = allProducts.map((p: any) => String(p.category || "").trim()).filter(Boolean);
       const categoryOptions = Array.from(new Set([...categoryFromTests, ...categoryFromProducts]));
@@ -890,7 +894,7 @@ Output Schema (Strict JSON):
       const whereClause = filters.length ? and(...filters) : undefined;
       const allUsers = whereClause ? await db.select().from(users).where(whereClause) : await db.select().from(users);
 
-      const safeUsers = allUsers.map(({ password, ...u }) => ({
+      const safeUsers = allUsers.map(({ password, ...u }: any) => ({
         ...u,
         isAdmin: Boolean(u.isAdmin || u.role === "admin"),
       }));

@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { db } from "./db.js";
 import { sql } from "drizzle-orm";
 
