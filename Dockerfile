@@ -18,6 +18,7 @@ EXPOSE 8080
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-server ./dist-server
+COPY --from=build /app/dist/public ./dist/public
 
 CMD ["npm", "run", "start"]
