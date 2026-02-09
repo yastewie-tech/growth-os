@@ -1,0 +1,206 @@
+{
+  "task": {
+    "title": "Update Laba page spec: AI output available for CTR+CR, DB is Neon (not NocoDB)",
+    "priority": "high",
+    "scope": "frontend+api+data-flow",
+    "goal": "Обновить JSON-инструкцию: (1) AI-блок доступен и для CTR, и для CR; (2) все сохранения/загрузки/патчи идут через ваш backend API на Neon Postgres (Express + Drizzle), а не напрямую в NocoDB."
+  },
+  "repo_context": {
+    "routing": "wouter",
+    "ui": "shadcn/ui + tailwind",
+    "icons": "lucide-react",
+    "auth": "useAuth from @/lib/auth-context",
+    "data_model": "ABTest from @shared/schema (stored in Neon via Drizzle)",
+    "api": {
+      "read_test": "GET /api/tests/:id",
+      "update_test": "PATCH /api/tests/:id",
+      "upload_image": "POST /api/uploads/image (or existing upload endpoint)"
+    },
+    "ai": "generateInsight from @/lib/gemini OR unified generateHypothesis/generateInsight on server",
+    "viewer": "SmartHypothesisViewer exists for long JSON/text editing"
+  },
+  "requirements": {
+    "must_have": [
+      "AI output (кнопка анализировать/переосмыслить) доступна для CTR и CR тестов",
+      "Никаких прямых запросов в NocoDB (ни storage, ни baseURL) — только через backend API",
+      "Загрузка изображений выполняется через backend endpoint (backend сохраняет/проксирует в storage и пишет URL/медиа в Neon)",
+      "Сохранение метрик/команды/целей/insight/variants выполняется через PATCH /api/tests/:id (backend пишет в Neon)",
+      "Страница /laba и кнопка 'В Lab' остаются как ранее: добавление id в localStorage + переход /laba?open=id",
+      "TestDetailView логика сохранена визуально и функционально, но все места где раньше был fetch к NOCODB_CONFIG.* — заменены на fetch к /api/tests/:id или /api/uploads/*"
+    ],
+    "constraints": [
+      "Не добавлять новые библиотеки",
+      "Стараться минимально менять ABTestsPage.tsx и ABTestCard.tsx",
+      "Вся бизнес-логика persist должна жить в backend API (Neon)"
+    ]
+  },
+  "key_changes_from_previous_spec": [
+    {
+      "change": "AI analytics block is available for both CTR and CR",
+      "implementation": [
+        "Удалить условие isCtrTest ? ... : ...",
+        "Показывать AI-блок всегда (если есть изображения для анализа), но подписи адаптировать: для CR сравниваем A vs B; для CTR сравниваем A vs текущий таб (или A vs лучший/выбранный)."
+      ]
+    },
+    {
+      "change": "Database is Neon; remove NOCODB_CONFIG usage",
+      "implementation": [
+        "Удалить импорты NOCODB_CONFIG (baseURL/tableId/storageURL/token) из TestDetailView",
+        "Все PATCH/POST делать на ваш Express API.",
+        "Хранение полей: metrics/variants/team/targets/images — в колонках таблицы ab_tests (или связанным таблицам) через Drizzle."
+      ]
+    }
+  ],
+  "api_contract_updates": {
+    "patch_test": {
+      "endpoint": "PATCH /api/tests/:id",
+      "request_body": {
+        "description": "string (optional)",
+        "images": "string[] OR record variant->url (optional)",
+        "references": "string[] (optional)",
+        "variants": "object|string (optional) — should accept object and stringify server-side",
+        "status": "'active'|'completed' (optional)",
+        "winner": "string|null (optional)",
+        "targetMultiplier": "number (optional)",
+        "voisBenchmark": "number (optional)",
+        "metricCurrent": "number (optional)",
+        "metricGoal": "number (optional)",
+        "manager": "string (optional)",
+        "contentManager": "string (optional)",
+        "designerGen": "string (optional)",
+        "designerTech": "string (optional)"
+      },
+      "response": "updated ABTest JSON"
+    },
+    "upload_image": {
+      "endpoint": "POST /api/uploads/image",
+      "request": "multipart/form-data: file",
+      "response": {
+        "url": "string"
+      },
+      "notes": [
+        "Backend сам решает storage (Cloudinary/S3/local) и возвращает url.",
+        "Frontend не должен иметь токены к storage."
+      ]
+    }
+  },
+  "implementation_plan": [
+    {
+      "step": "1) Update TestDetailView persistence to Neon API",
+      "details": [
+        "Заменить все fetch(`${NOCODB_CONFIG.baseURL}/${NOCODB_CONFIG.tableId}/records`, { method:'PATCH' ... }) на fetch(`/api/tests/${test.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...}) })",
+        "Структура payload в PATCH должна совпадать с тем, что backend ожидает. Рекомендуется отправлять variants как объект, а backend сам stringify/validate.",
+        "Победитель winner вычисляется как раньше (finalWinner логика сохраняется), но сохраняется через /api/tests/:id."
+      ]
+    },
+    {
+      "step": "2) Update image upload flow to backend",
+      "details": [
+        "Заменить загрузку через NOCODB storage на POST /api/uploads/image",
+        "После получения url: обновить images state и вызвать PATCH /api/tests/:id с новым images (или img_<variant> поле если у вас так хранится)",
+        "Важно: сохранить совместимость с текущей схемой ABTest (если images сейчас string[] — согласовать маппинг variant->url)."
+      ]
+    },
+    {
+      "step": "3) Make AI analytics available for both CTR and CR",
+      "details": [
+        "AI-блок показывать всегда (если есть изображения для анализа).",
+        "Сбор imagesToAnalyze:",
+        "— для CTR: варианты A-E (как сейчас)",
+        "— для CR: только A и B (или A + текущий таб, если табов больше в будущем)",
+        "Текст UI: заменить \"Сравнение с Вариантом А\" на универсальное \"AI анализ вариантов\" и показывать подпись \"A vs <tab>\".",
+        "Результат AI сохранять в metrics.insight точно так же (prepend + архив), затем PATCH /api/tests/:id { variants: updatedMetrics }."
+      ]
+    },
+    {
+      "step": "4) Laba page remains same (localStorage list + open detail)",
+      "details": [
+        "Ничего не менять кроме того, что LabaPage читает тесты через GET /api/tests/:id (как ранее).",
+        "Если нужно — добавить кнопку 'Открыть в CTR/CR editor' но это не обязательно."
+      ]
+    }
+  ],
+  "code_changes": {
+    "files_to_add": [
+      {
+        "path": "client/src/pages/LabaPage.tsx",
+        "purpose": "Laba page listing + open TestDetailView"
+      },
+      {
+        "path": "client/src/components/laba/TestDetailView.tsx",
+        "purpose": "Detail view перенесен, но с Neon API persist вместо NocoDB"
+      },
+      {
+        "path": "client/src/lib/laba/labaStore.ts",
+        "purpose": "localStorage helpers for ids"
+      }
+    ],
+    "files_to_modify": [
+      {
+        "path": "client/src/App.tsx (router file)",
+        "change": "Add route /laba"
+      },
+      {
+        "path": "client/src/pages/ABTestsPage.tsx",
+        "change": "Provide onGoLab handler to ABTestCard (if needed)"
+      },
+      {
+        "path": "client/src/components/ab-tests/ABTestCard.tsx",
+        "change": "On 'В Lab' click: add id to localStorage + navigate('/laba?open='+id)"
+      },
+      {
+        "path": "server/routes/tests.ts (or equivalent)",
+        "change": [
+          "Ensure PATCH /api/tests/:id supports fields used by TestDetailView: variants, status, winner, targetMultiplier, voisBenchmark, metricCurrent, metricGoal, manager/contentManager/designerGen/designerTech, images",
+          "If upload endpoint doesn't exist, add POST /api/uploads/image returning {url}"
+        ]
+      }
+    ]
+  },
+  "exact_behavior_spec": {
+    "ai_block_visibility": {
+      "rule": "AI блок доступен для CTR и CR",
+      "visibility_condition": [
+        "Показывать блок всегда, но если нет изображений -> показывать подсказку \"Загрузите хотя бы A и B\""
+      ],
+      "compare_logic": [
+        "CTR: анализировать A + все доступные варианты (B..E) с url",
+        "CR: анализировать A + B (если B отсутствует — предупредить)"
+      ]
+    },
+    "ai_persist": {
+      "frontend": [
+        "insightJson = await generateInsight(payload, imagesToAnalyze)",
+        "metrics.insight = insightJson + separator + oldContent",
+        "PATCH /api/tests/:id { variants: updatedMetrics }"
+      ],
+      "backend": [
+        "accept variants as object; store JSONB (preferred) or stringify if schema is text",
+        "return updated test"
+      ]
+    },
+    "image_upload": {
+      "frontend": [
+        "POST /api/uploads/image (multipart)",
+        "receive {url}",
+        "update local state images[tab] = url",
+        "PATCH /api/tests/:id with updated images"
+      ],
+      "backend": [
+        "store file; return url",
+        "optionally validate mime and size"
+      ]
+    }
+  },
+  "acceptance_tests": [
+    "CR тест: загрузить A и B, нажать AI анализ -> появляется insight, сохраняется через PATCH /api/tests/:id, после reload сохраняется",
+    "CTR тест: загрузить A и C, нажать AI анализ -> insight сохраняется, старые инсайты уходят в архив ниже",
+    "Никаких запросов к NOCODB_CONFIG.* нет в коде (глобальный поиск по 'NOCODB_CONFIG' в TestDetailView/LabaPage)",
+    "При сохранении метрик/команды/целей данные реально меняются в Neon (проверить через GET /api/tests/:id)"
+  ],
+  "deliverable": {
+    "format": "single_text_file",
+    "file_name_suggestion": "github_ai_patch_laba_page_neon_ai_for_ctr_and_cr.json",
+    "content": "This JSON itself is the instruction to implement the updated feature."
+  }
+}
