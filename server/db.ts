@@ -1,67 +1,84 @@
 import fs from "fs";
-import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
+import * as schema from "../shared/schema.js";
 
-// если у тебя есть schema import — оставь как было
-// import * as schema from "./schema";
+const exampleUrl = "postgresql://user:password@host:5432/dbname?sslmode=require";
 
-const exampleUrl =
-  "postgresql://user:password@host:5432/dbname?sslmode=require";
+let _sql: ReturnType<typeof postgres> | null = null;
+let _db: ReturnType<typeof drizzle> | null = null;
 
-function readSecretFile(p: string) {
+function readSecretFile(filePath: string) {
   try {
-    if (fs.existsSync(p)) return fs.readFileSync(p, "utf8").trim();
-  } catch {}
-  return "";
+    if (!filePath) return null;
+    if (!fs.existsSync(filePath)) return null;
+    const value = fs.readFileSync(filePath, "utf8").trim();
+    return value || null;
+  } catch {
+    return null;
+  }
 }
 
 function resolveDatabaseUrl() {
-  // 1) обычный env
-  const envUrl = (process.env.DATABASE_URL || "").trim();
-  if (envUrl) return envUrl;
+  let url = (process.env.DATABASE_URL || "").trim();
 
-  // 2) Render Secret File (если ты хранишь строку так)
-  const secretFileUrl = readSecretFile("/etc/secrets/DATABASE_URL");
-  if (secretFileUrl) return secretFileUrl;
+  if (!url) {
+    url =
+      readSecretFile(process.env.DATABASE_URL_FILE || "") ||
+      readSecretFile("/etc/secrets/DATABASE_URL") ||
+      readSecretFile("/etc/secrets/DATABASE_URL.txt") ||
+      "";
+  }
 
-  // 3) иногда люди кладут как DATABASE_URL — тоже поддержим
-  const alt = (process.env.DATABASE_URL || "").trim();
-  if (alt) return alt;
-
-  return "";
+  return url.trim();
 }
 
-function validateDatabaseUrl(url: string) {
-  if (!url) {
+function validateDatabaseUrl(value: string) {
+  if (!value) {
     throw new Error(
       `DATABASE_URL is missing. Provide a valid Postgres connection string, e.g. ${exampleUrl}`
     );
   }
-  // простая sanity-check
-  if (!url.startsWith("postgres://") && !url.startsWith("postgresql://")) {
-    throw new Error(
-      `DATABASE_URL looks invalid (must start with postgres:// or postgresql://). Example: ${exampleUrl}`
-    );
-  }
-}
 
-let _db: ReturnType<typeof drizzle> | null = null;
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`DATABASE_URL is invalid. Expected format: ${exampleUrl}`);
+  }
+
+  if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") {
+    throw new Error(`DATABASE_URL must start with postgres:// or postgresql://. Example: ${exampleUrl}`);
+  }
+
+  if (value.includes("neon.tech") && !/sslmode=/.test(value)) {
+    return value + (value.includes("?") ? "&" : "?") + "sslmode=require";
+  }
+
+  return value;
+}
 
 export function getDb() {
   if (_db) return _db;
 
-  const url = resolveDatabaseUrl();
-  validateDatabaseUrl(url);
+  const connectionString = validateDatabaseUrl(resolveDatabaseUrl());
 
-  // важно: для Neon обычно ssl нужен — он у тебя уже в строке ?sslmode=require
-  const client = postgres(url, {
-    // разумные дефолты
+  _sql = postgres(connectionString, {
+    ssl: "require",
+    prepare: false,
     max: 5,
     idle_timeout: 20,
-    connect_timeout: 20,
+    connect_timeout: 30,
   });
 
-  // если у тебя schema подключается — раскомментируй schema
-  _db = drizzle(client /*, { schema }*/);
+  _db = drizzle(_sql, { schema });
   return _db;
 }
+
+// Preserve existing API: export { db } with lazy init to avoid crashes on import.
+export const db = new Proxy({} as ReturnType<typeof drizzle>, {
+  get(_t, prop) {
+    const real = getDb();
+    return (real as any)[prop];
+  },
+});

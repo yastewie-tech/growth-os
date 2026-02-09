@@ -560,25 +560,30 @@ Output Schema (Strict JSON):
 
   // --- API: ВХОД В СИСТЕМУ ---
   app.post("/api/login", async (req, res) => {
-    const { username, password } = req.body;
+    try {
+      const { username, password } = req.body;
 
-    const user = await db.query.users.findFirst({
-      where: eq(users.username, username),
-    });
+      const user = await db.query.users.findFirst({
+        where: eq(users.username, username),
+      });
 
-    if (!user || user.password !== password) {
-      return res.status(401).json({ message: "Неверный логин или пароль" });
+      if (!user || user.password !== password) {
+        return res.status(401).json({ message: "Неверный логин или пароль" });
+      }
+
+      if (user.isActive === false) {
+        return res.status(403).json({ message: "Пользователь отключен" });
+      }
+
+      const { password: _, ...userInfo } = user;
+      res.json({
+        ...userInfo,
+        isAdmin: Boolean(user.isAdmin || user.role === "admin"),
+      });
+    } catch (error) {
+      console.error("❌ /api/login error:", error);
+      res.status(500).json({ message: "Ошибка при входе" });
     }
-
-    if (user.isActive === false) {
-      return res.status(403).json({ message: "Пользователь отключен" });
-    }
-
-    const { password: _, ...userInfo } = user;
-    res.json({
-      ...userInfo,
-      isAdmin: Boolean(user.isAdmin || user.role === "admin"),
-    });
   });
 
   // --- API: ПОЛУЧИТЬ ПОЛЬЗОВАТЕЛЕЙ ---
