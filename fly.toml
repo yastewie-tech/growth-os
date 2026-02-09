@@ -7,3 +7,16 @@ app = "growth-os"
   auto_start_machines = true
   min_machines_running = 1
   processes = ["app"]
+
+[[http_service.checks]]
+  interval = "15s"
+  timeout = "2s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/health"
+  protocol = "http"
+
+[vm]
+  memory = "512mb"
+  cpus = 1
+  cpu_kind = "shared"

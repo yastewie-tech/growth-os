@@ -13,6 +13,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // -----------------------------------
 
+app.get("/health", (_req, res) => {
+  res.status(200).send("ok");
+});
+
 // Логирование запросов
 app.use((req, res, next) => {
   const start = Date.now();
