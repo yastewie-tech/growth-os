@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { db } from "./db";
+import { db } from "./db.js";
 import { sql } from "drizzle-orm";
 
 async function hardReset() {

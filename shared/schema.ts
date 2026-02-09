@@ -164,15 +164,6 @@ export type ABTest = {
     designer?: string;
     contentManager?: string;
   };
-  createdBy?: string;
-  hiddenScopes?: {
-    base?: boolean;
-    laba?: boolean;
-  };
-  assignees?: {
-    designer?: string;
-    contentManager?: string;
-  };
   showInBase?: boolean;
   showInLab?: boolean;
   showInKanban?: boolean;

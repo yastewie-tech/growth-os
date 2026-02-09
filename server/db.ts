@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "../shared/schema"; // 1. Импортируем схему
+import * as schema from "../shared/schema.js"; // 1. Импортируем схему
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL missing");

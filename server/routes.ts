@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { db } from "./db";
-import { abTests, users, products, skuContexts } from "../shared/schema";
+import { db } from "./db.js";
+import { abTests, users, products, skuContexts } from "../shared/schema.js";
 import { eq, desc, and, or, ilike, sql, isNull } from "drizzle-orm";
 import OpenAI from "openai";
 import multer from "multer";

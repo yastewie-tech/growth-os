@@ -1,9 +1,9 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { db } from "./db";
-import { users, abTests } from "../shared/schema";
+import { registerRoutes } from "./routes.js";
+import { setupVite, serveStatic, log } from "./vite.js";
+import { db } from "./db.js";
+import { users, abTests } from "../shared/schema.js";
 import { sql } from "drizzle-orm";
 
 const app = express();

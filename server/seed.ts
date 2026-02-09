@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { db } from "./db";
-import { products } from "../shared/schema";
+import { db } from "./db.js";
+import { products } from "../shared/schema.js";
 
 async function seed() {
   console.log("🌱 Заполняем базу реальными категориями...");

@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { db } from "./db";
-import { users } from "../shared/schema";
+import { db } from "./db.js";
+import { users } from "../shared/schema.js";
 
 async function checkUsers() {
   console.log("🔍 Смотрю в базу данных...");

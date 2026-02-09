@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { db } from "./db";
-import { products, users, abTests } from "../shared/schema";
+import { db } from "./db.js";
+import { products, users, abTests } from "../shared/schema.js";
 
 async function forceSeed() {
   console.log("☢️  Перезаливка базы с именами...");
