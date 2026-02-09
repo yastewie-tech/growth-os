@@ -5,12 +5,14 @@
     "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "types": ["node"],
     "outDir": "dist-server",
     "rootDir": ".",
     "noEmit": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noImplicitAny": false
   },
   "include": ["server/**/*.ts", "server/**/*.tsx"],
   "exclude": ["node_modules", "dist", "dist-server", "server/check-users.ts"]
