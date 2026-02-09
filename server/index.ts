@@ -184,16 +184,15 @@ app.use((req, res, next) => {
     }
   };
 
-  // Проверяем и инициализируем БД если нужно
-  try {
-    await ensureAbTestsColumns();
-    await ensureAdminSchema();
+  const shouldInitDb = process.env.DB_INIT_ON_START === "true";
+
+  const initDb = async () => {
     const existingUsers = await db.select().from(users);
     const existingTests = await db.select().from(abTests);
-    
+
     if (existingUsers.length === 0 || existingTests.length === 0) {
       log("📝 БД пуста, инициализирую данные...");
-      
+
       // Чистим старое
       await db.delete(abTests);
       await db.delete(users);
@@ -274,6 +273,17 @@ app.use((req, res, next) => {
       ]);
 
       log("✅ БД инициализирована с данными!");
+    }
+  };
+
+  // Проверяем и инициализируем БД если нужно
+  try {
+    if (shouldInitDb) {
+      await ensureAbTestsColumns();
+      await ensureAdminSchema();
+      await initDb();
+    } else {
+      log("DB init on start is disabled (set DB_INIT_ON_START=true to enable)", "db");
     }
   } catch (error) {
     log("⚠️  Не удалось инициализировать БД, продолжаю работу...");
