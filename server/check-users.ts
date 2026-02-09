@@ -11,7 +11,7 @@ async function checkUsers() {
       console.log("❌ Таблица пользователей пуста!");
     } else {
       console.log("✅ Найдены пользователи:");
-      allUsers.forEach(u => {
+      allUsers.forEach((u: any) => {
         console.log(`- Login: '${u.username}' | Pass: '${u.password}' | Role: ${u.role}`);
       });
     }
