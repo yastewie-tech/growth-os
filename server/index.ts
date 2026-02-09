@@ -14,7 +14,7 @@ app.use(express.urlencoded({ extended: false }));
 // -----------------------------------
 
 app.get("/health", (_req, res) => {
-  res.status(200).send("ok");
+  res.status(200).json({ status: "ok" });
 });
 
 // Логирование запросов
@@ -295,7 +295,7 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  const PORT = parseInt(process.env.PORT || "8080", 10);
+  const PORT = Number(process.env.PORT) || 8080;
   server.listen(PORT, "0.0.0.0", () => {
     log(`serving on port ${PORT}`);
   });
