@@ -299,7 +299,9 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  if (app.get("env") === "development") {
+  const isProd = process.env.NODE_ENV === "production";
+
+  if (!isProd) {
     await setupVite(app, server);
   } else {
     serveStatic(app);

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: growth-os
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_INIT_ON_START
+        value: "false"
+      - key: ADMIN_BOOTSTRAP
+        value: "true"
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        value: generateValue
+      - key: DATABASE_URL
+        sync: false
